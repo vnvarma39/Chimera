@@ -1,0 +1,150 @@
+{
+  "375dfa0c": {
+    "session_id": "375dfa0c",
+    "start_time": "2026-04-06T17:32:34.447572",
+    "cwd": "/home/admin",
+    "user": "root",
+    "privilege_level": "root",
+    "command_count": 5,
+    "command_log": [
+      {
+        "time": "17:32:53",
+        "command": "whoami",
+        "mitre_tags": [
+          {
+            "id": "T1033",
+            "name": "System Owner Discovery",
+            "command": "whoami"
+          }
+        ]
+      },
+      {
+        "time": "17:33:50",
+        "command": "id",
+        "mitre_tags": [
+          {
+            "id": "T1033",
+            "name": "System Owner Discovery",
+            "command": "id"
+          }
+        ]
+      },
+      {
+        "time": "17:34:27",
+        "command": "cat /var/www/html/config.php",
+        "mitre_tags": [
+          {
+            "id": "T1059",
+            "name": "Command/Script Interpreter",
+            "command": "cat /var/www/html/config.php"
+          },
+          {
+            "id": "T1005",
+            "name": "Data from Local System",
+            "command": "cat /var/www/html/config.php"
+          }
+        ]
+      },
+      {
+        "time": "17:35:19",
+        "command": "sudo -l",
+        "mitre_tags": [
+          {
+            "id": "T1548",
+            "name": "Privilege Escalation",
+            "command": "sudo -l"
+          }
+        ]
+      },
+      {
+        "time": "17:36:58",
+        "command": "exit",
+        "mitre_tags": []
+      }
+    ],
+    "files_read": [
+      "/var/www/html/config.php"
+    ],
+    "filesystem": {
+      "/": [
+        "home",
+        "etc",
+        "var",
+        "usr",
+        "tmp",
+        "root",
+        "opt"
+      ],
+      "/home": [
+        "admin"
+      ],
+      "/home/admin": [
+        ".bash_history",
+        ".ssh",
+        "notes.txt",
+        "backup.sh"
+      ],
+      "/home/admin/.ssh": [
+        "id_rsa",
+        "id_rsa.pub",
+        "known_hosts",
+        "authorized_keys"
+      ],
+      "/etc": [
+        "passwd",
+        "shadow",
+        "hosts",
+        "hostname",
+        "crontab",
+        "nginx",
+        "mysql"
+      ],
+      "/etc/nginx": [
+        "nginx.conf",
+        "sites-enabled"
+      ],
+      "/etc/mysql": [
+        "my.cnf"
+      ],
+      "/var": [
+        "www",
+        "log",
+        "backups"
+      ],
+      "/var/www": [
+        "html"
+      ],
+      "/var/www/html": [
+        "index.php",
+        "config.php",
+        "admin.php",
+        ".htaccess"
+      ],
+      "/var/log": [
+        "auth.log",
+        "syslog",
+        "nginx",
+        "mysql.log"
+      ],
+      "/tmp": [],
+      "/root": [
+        ".bash_history",
+        ".ssh",
+        "flag.txt"
+      ],
+      "/opt": [
+        "app",
+        "backup"
+      ],
+      "/opt/app": [
+        "app.py",
+        "config.json",
+        "requirements.txt"
+      ],
+      "/opt/backup": [
+        "db_backup_2024.sql.gz",
+        "keys.tar.gz"
+      ]
+    }
+  }
+}
