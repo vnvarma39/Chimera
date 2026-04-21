@@ -3,7 +3,7 @@ import json
 from state_engine import SessionState, FILE_CONTENTS
 
 client = OpenAI(
-    api_key="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",        # paste your OpenRouter key here
+    api_key="YOUR_API_KEY",        # paste your OpenRouter key here
     base_url="https://openrouter.ai/api/v1"
 )
 
