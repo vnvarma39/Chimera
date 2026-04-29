@@ -8,7 +8,10 @@ import time
 
 sys.path.insert(0, os.path.dirname(__file__))
 from state_engine import get_or_create_session, save_session
-from llm_engine import get_terminal_response
+from llm_engine import get_terminal_response, get_transcript, get_narrative_for_session
+from red_team import run_red_team_analysis, save_redteam_findings
+
+RED_TEAM_EVERY = 10  # run red team analysis every N commands
 
 HOST_KEY_PATH = os.path.join(os.path.dirname(__file__), "host_key")
 LISTEN_PORT = 2222
@@ -131,6 +134,20 @@ def handle_connection(client_socket, client_addr):
                         save_session(session)
                         channel.close()
                         return
+
+                    # Red team analysis — background thread every N commands
+                    cmd_count = len(session.command_log)
+                    if cmd_count > 0 and cmd_count % RED_TEAM_EVERY == 0:
+                        def _run_rt(sid=session_id, s=session):
+                            try:
+                                narrative = get_narrative_for_session(sid)
+                                transcript = get_transcript(sid)
+                                findings = run_red_team_analysis(transcript, narrative)
+                                save_redteam_findings(sid, findings)
+                                print(f"  [RED TEAM] {sid}: risk={findings.get('detection_risk')} fooled={findings.get('would_i_be_fooled')}")
+                            except Exception as e:
+                                print(f"  [RED TEAM] Error: {e}")
+                        threading.Thread(target=_run_rt, daemon=True).start()
 
                     # Get LLM response
                     response = get_terminal_response(command, session)

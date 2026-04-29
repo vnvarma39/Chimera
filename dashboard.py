@@ -1,7 +1,14 @@
+"""
+dashboard.py — Project Chimera (upgraded)
+Shows: live command stream, MITRE heatmap, attacker profile,
+narrative world card, prompt evolution history, red team findings.
+"""
+
 import streamlit as st
 import json
 import time
 from pathlib import Path
+from red_team import load_redteam_findings
 
 st.set_page_config(
     page_title="Project Chimera — Analyst Dashboard",
@@ -12,41 +19,46 @@ st.set_page_config(
 st.markdown("""
 <style>
 .mitre-tag {
-    background: #1a1a2e;
-    color: #e94560;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-family: monospace;
-    margin: 2px;
-    display: inline-block;
+    background: #1a1a2e; color: #e94560;
+    padding: 2px 8px; border-radius: 4px;
+    font-size: 12px; font-family: monospace;
+    margin: 2px; display: inline-block;
 }
 .cmd-line {
-    font-family: monospace;
+    font-family: monospace; font-size: 13px;
+    padding: 4px 8px; background: #0f0f0f;
+    color: #00ff41; border-radius: 4px; margin: 2px 0;
+}
+.world-card {
+    background: #0d1b2a; border: 1px solid #1e3a5f;
+    border-radius: 8px; padding: 12px; margin-bottom: 8px;
+}
+.evolve-card {
+    background: #1a0d2e; border: 1px solid #6a1e8a;
+    border-radius: 6px; padding: 10px; margin: 4px 0;
     font-size: 13px;
-    padding: 4px 8px;
-    background: #0f0f0f;
-    color: #00ff41;
-    border-radius: 4px;
-    margin: 2px 0;
 }
-.canary-alert {
-    background: #ff4444;
-    color: white;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-weight: bold;
-}
+.redteam-high   { background:#4a0000; color:#ff6666; padding:6px 10px; border-radius:4px; margin:3px 0; }
+.redteam-medium { background:#3a2a00; color:#ffcc44; padding:6px 10px; border-radius:4px; margin:3px 0; }
+.redteam-low    { background:#003a00; color:#66ff66; padding:6px 10px; border-radius:4px; margin:3px 0; }
+.stat-box { text-align:center; }
 </style>
 """, unsafe_allow_html=True)
 
 st.markdown("## 🕸️ Project Chimera — Live Analyst Dashboard")
-st.caption("AI-Powered Honeypot | Real-time threat intelligence")
+st.caption("GenAI-Powered Honeypot | Narrative Engine · Adaptive Prompt Evolution · Red Team Loop")
 
 refresh = st.sidebar.slider("Auto-refresh (seconds)", 1, 10, 2)
 st.sidebar.markdown("---")
-st.sidebar.markdown("**About**")
-st.sidebar.markdown("Project Chimera uses an LLM to simulate a Linux server, trapping attackers in a hallucinated environment while mapping their behavior to MITRE ATT&CK.")
+st.sidebar.markdown("""
+**How it works**
+1. Attacker SSHs in
+2. **Narrative Engine** generates a unique company world
+3. LLM simulates the terminal
+4. Every 5 commands, **Prompt Evolution** rewrites the system prompt
+5. **Red Team Agent** hunts for inconsistencies
+6. MITRE ATT&CK tags fire in real-time
+""")
 
 _live = Path(__file__).parent / "data" / "live_sessions.json"
 placeholder = st.empty()
@@ -57,41 +69,70 @@ while True:
     except Exception:
         sessions = []
 
+    redteam_data = load_redteam_findings()
+
     with placeholder.container():
         if not sessions:
-            st.info("Waiting for connections...\n\nssh admin@localhost -p 2222 (any password)")
+            st.info("⏳ Waiting for connections...\n\n`ssh admin@localhost -p 2222` (any password)")
         else:
+            # ── Top stats ─────────────────────────────────────────────────────
             total_commands = sum(s["command_count"] for s in sessions)
-            total_canaries = sum(len(s["files_read"]) for s in sessions)
+            total_canaries = sum(len(s.get("files_read", [])) for s in sessions)
             all_tags = []
             for s in sessions:
-                for cmd in s["command_log"]:
+                for cmd in s.get("command_log", []):
                     all_tags.extend(cmd.get("mitre_tags", []))
+            total_evolutions = sum(len(s.get("evolutions", [])) for s in sessions)
 
-            col1, col2, col3, col4 = st.columns(4)
-            col1.metric("Active Sessions", len(sessions))
-            col2.metric("Total Commands", total_commands)
-            col3.metric("MITRE Tags Fired", len(all_tags))
-            col4.metric("Canary Tokens Accessed", total_canaries)
+            c1, c2, c3, c4, c5 = st.columns(5)
+            c1.metric("Active Sessions", len(sessions))
+            c2.metric("Total Commands", total_commands)
+            c3.metric("MITRE Tags", len(all_tags))
+            c4.metric("Prompt Evolutions", total_evolutions)
+            c5.metric("🚨 Canary Hits", total_canaries)
             st.markdown("---")
 
             for session in sessions:
                 sid = session["session_id"]
-                priv = session["privilege_level"]
-                priv_color = "ROOT" if priv == "root" else "USER"
+                priv = session.get("privilege_level", "user")
+                narrative = session.get("narrative", {})
+                evolutions = session.get("evolutions", [])
+                company = narrative.get("company_name", "Unknown Corp")
+                hostname = narrative.get("hostname", "prod-db-01.internal")
+                archetype = narrative.get("archetype", "unknown")
+                sensitivity = narrative.get("sensitivity", "internal data")
 
-                with st.expander(
-                    f"[{priv_color}] Session {sid} | user: {session['user']} | cwd: {session['cwd']} | {session['command_count']} commands",
-                    expanded=True
-                ):
-                    left, right = st.columns([3, 2])
+                header = (
+                    f"{'🔴 ROOT' if priv == 'root' else '🟢 USER'}  |  "
+                    f"Session {sid}  |  {session['command_count']} commands  |  "
+                    f"{company} ({hostname})"
+                )
 
-                    with left:
-                        st.markdown("**Command Stream**")
-                        for entry in reversed(session["command_log"][-20:]):
-                            tags_html = ""
-                            for tag in entry.get("mitre_tags", []):
-                                tags_html += f'<span class="mitre-tag">{tag["id"]} {tag["name"]}</span>'
+                with st.expander(header, expanded=True):
+
+                    # ── World card ────────────────────────────────────────────
+                    if narrative:
+                        st.markdown(
+                            f'<div class="world-card">'
+                            f'🌐 <b>Hallucinated World</b> &nbsp;|&nbsp; '
+                            f'<b>{company}</b> &nbsp;·&nbsp; {archetype} &nbsp;·&nbsp; '
+                            f'{hostname} &nbsp;·&nbsp; '
+                            f'<span style="color:#ff9944">Sensitive: {sensitivity}</span>'
+                            f'</div>',
+                            unsafe_allow_html=True
+                        )
+
+                    # ── Four columns ──────────────────────────────────────────
+                    col_cmd, col_mitre, col_evolve, col_redteam = st.columns([3, 2, 2, 2])
+
+                    # Column 1: Command stream
+                    with col_cmd:
+                        st.markdown("**📟 Command Stream**")
+                        for entry in reversed(session.get("command_log", [])[-20:]):
+                            tags_html = "".join(
+                                f'<span class="mitre-tag">{t["id"]}</span>'
+                                for t in entry.get("mitre_tags", [])
+                            )
                             st.markdown(
                                 f'<div class="cmd-line">'
                                 f'<span style="color:#888">{entry["time"]}</span> '
@@ -99,49 +140,113 @@ while True:
                                 f'</div>{tags_html}',
                                 unsafe_allow_html=True
                             )
+                        if session.get("files_read"):
+                            st.markdown("---")
+                            for f in session["files_read"]:
+                                st.error(f"🚨 CANARY: {f}")
 
-                    with right:
-                        st.markdown("**MITRE ATT&CK Heatmap**")
+                    # Column 2: MITRE heatmap + attacker profile
+                    with col_mitre:
+                        st.markdown("**🗺️ MITRE ATT&CK**")
                         tactic_counts = {}
-                        for entry in session["command_log"]:
+                        for entry in session.get("command_log", []):
                             for tag in entry.get("mitre_tags", []):
-                                key = f"{tag['id']} - {tag['name']}"
-                                tactic_counts[key] = tactic_counts.get(key, 0) + 1
+                                key = f"{tag['id']}"
+                                name = tag['name']
+                                tactic_counts[key] = tactic_counts.get(key, {"count": 0, "name": name})
+                                tactic_counts[key]["count"] += 1
 
                         if tactic_counts:
-                            for tactic, count in sorted(tactic_counts.items(), key=lambda x: -x[1]):
-                                bar = "X" * min(count * 3, 20)
-                                st.markdown(f"`{tactic}` **{count}x** `{bar}`")
+                            for tid, info in sorted(tactic_counts.items(), key=lambda x: -x[1]["count"]):
+                                bar = "█" * min(info["count"] * 2, 12)
+                                st.markdown(f"`{tid}` {info['name']} **{info['count']}x**")
+                                st.progress(min(info["count"] / 10.0, 1.0))
                         else:
-                            st.caption("No tactics detected yet")
+                            st.caption("No tactics yet")
 
                         st.markdown("---")
-                        st.markdown("**Attacker Profile**")
+                        st.markdown("**🧠 Attacker Profile**")
                         tactic_ids = set()
-                        for entry in session["command_log"]:
+                        for entry in session.get("command_log", []):
                             for tag in entry.get("mitre_tags", []):
                                 tactic_ids.add(tag["id"])
-
-                        cmds = [e["command"] for e in session["command_log"]]
+                        cmds = [e["command"] for e in session.get("command_log", [])]
                         cmd_text = " ".join(cmds).lower()
 
                         if "t1548" in tactic_ids and "t1003" in tactic_ids and len(cmds) > 10:
-                            profile = "APT / Advanced Pentester"
+                            profile, color = "APT / Advanced Threat Actor", "#ff4444"
                         elif any(x in cmd_text for x in ["nmap", "masscan", "nikto"]):
-                            profile = "Script Kiddie / Recon Tool"
-                        elif len(cmds) < 5:
-                            profile = "Unknown - gathering data"
+                            profile, color = "Script Kiddie / Recon Tool", "#ff9944"
                         elif "t1548" in tactic_ids:
-                            profile = "Intermediate - Privilege Focus"
+                            profile, color = "Intermediate — Privilege Focus", "#ffcc44"
+                        elif len(cmds) < 5:
+                            profile, color = "Unknown — Gathering data", "#888888"
                         else:
-                            profile = "Low Skill - Basic Recon"
+                            profile, color = "Low Skill — Basic Recon", "#44aaff"
 
-                        st.markdown(f"**{profile}**")
+                        st.markdown(f'<span style="color:{color};font-weight:bold">{profile}</span>', unsafe_allow_html=True)
 
-                        if session["files_read"]:
-                            st.markdown("---")
-                            st.markdown("**CANARY TOKEN ALERTS**")
-                            for f in session["files_read"]:
-                                st.error(f"ACCESSED: {f}")
+                        # Threat score
+                        score = min(len(tactic_ids) * 12 + len(cmds) * 2, 100)
+                        st.metric("Threat Score", f"{score}/100")
+                        st.progress(score / 100)
+
+                    # Column 3: Prompt Evolution history
+                    with col_evolve:
+                        st.markdown("**🧬 Prompt Evolution**")
+                        if not evolutions:
+                            remaining = EVOLVE_EVERY - (session["command_count"] % EVOLVE_EVERY)
+                            st.caption(f"First evolution in {remaining} commands...")
+                        else:
+                            for ev in reversed(evolutions):
+                                focus = ev.get("attacker_focus", "unknown")
+                                skill = ev.get("skill_assessment", "unknown")
+                                summary = ev.get("evolution_summary", "")
+                                bait_count = len(ev.get("new_bait_files", []))
+                                vuln = ev.get("adapted_vulnerability", "")
+                                st.markdown(
+                                    f'<div class="evolve-card">'
+                                    f'<b>Evolution #{ev.get("evolution_number","?")} </b><br>'
+                                    f'Focus: <b>{focus}</b> | Skill: <b>{skill}</b><br>'
+                                    f'🎣 {bait_count} bait files injected<br>'
+                                    f'🔓 Exposed: {vuln}<br>'
+                                    f'<i style="color:#aaa">{summary}</i>'
+                                    f'</div>',
+                                    unsafe_allow_html=True
+                                )
+
+                    # Column 4: Red Team findings
+                    with col_redteam:
+                        st.markdown("**🔴 Red Team Agent**")
+                        rt_findings = redteam_data.get(sid, [])
+                        if not rt_findings:
+                            st.caption("Red team analysis runs every 10 commands...")
+                        else:
+                            latest = rt_findings[-1]
+                            risk = latest.get("detection_risk", "unknown")
+                            risk_color = {"high": "#ff4444", "medium": "#ffcc44", "low": "#44ff44"}.get(risk, "#888")
+                            fooled = latest.get("would_i_be_fooled", None)
+                            st.markdown(
+                                f'<b>Detection Risk: </b><span style="color:{risk_color}">{risk.upper()}</span><br>'
+                                f'Would I be fooled? <b>{"✅ YES" if fooled else "❌ NO"}</b>',
+                                unsafe_allow_html=True
+                            )
+                            st.markdown(f"*{latest.get('overall_assessment', '')}*")
+                            st.markdown("**Findings:**")
+                            for finding in latest.get("findings", [])[:4]:
+                                sev = finding.get("severity", "low")
+                                css = f"redteam-{sev}"
+                                st.markdown(
+                                    f'<div class="{css}">⚠ {finding["issue"]}<br>'
+                                    f'<small>Fix: {finding.get("fix_suggestion","")}</small></div>',
+                                    unsafe_allow_html=True
+                                )
 
     time.sleep(refresh)
+
+
+# Make EVOLVE_EVERY accessible to dashboard for the countdown display
+try:
+    from prompt_evolution import EVOLVE_EVERY
+except ImportError:
+    EVOLVE_EVERY = 5
