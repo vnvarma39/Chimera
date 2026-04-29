@@ -13,7 +13,7 @@ from narrative_engine import generate_narrative, build_narrative_files
 from prompt_evolution import should_evolve, evolve_prompt, build_evolved_system_prompt, EVOLVE_EVERY
 
 client = OpenAI(
-    api_key="YOUR OPEN ROUTER API KEY HERE",   # ← paste your OpenRouter key here
+    api_key="YOUR OPEN ROUTER API KEY ",   # ← paste your OpenRouter key here
     base_url="https://openrouter.ai/api/v1"
 )
 
