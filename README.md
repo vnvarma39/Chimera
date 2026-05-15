@@ -9,6 +9,8 @@ A GenAI-centric SSH honeypot and deception simulator with:
 - GAN discriminator with online learning
 - React dashboard (no Streamlit)
 
+webpage link : https://chimera-v3.vercel.app/
+
 ## Setup
 
 ```bash
